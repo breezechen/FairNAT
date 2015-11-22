@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Use !/bin/bash -x instead if you want to know what the script does.
 # -------------------------------------------------------------------------
 # File:         fairnat.sh
@@ -34,7 +34,7 @@ LANG=C
 #   Fair NAT, where you could specify rates as kbit/s only.
 # SEE ALSO:
 # -----------------------------------------------------------------------------
-function rate
+rate()
 {
     RATE=0
     R_RATE=$1
@@ -85,7 +85,7 @@ function rate
 #   configured automatically. This is done after the config file was loaded.
 # SEE ALSO:
 # -----------------------------------------------------------------------------
-function configure
+configure()
 {
     C_CONFIG_FILE=$1
 
@@ -147,10 +147,8 @@ function configure
 # Now comes the part that can't be configured by the user:
 
 # Get size of USERS and PORTS. Temporarily convert to Array to do this.
-    NUM_USERS=($USERS)
-    NUM_USERS=${#NUM_USERS[*]}
-    NUM_PORTS=($PORTS)
-    NUM_PORTS=${#NUM_PORTS[*]}
+    NUM_USERS=$(let i=0;for item in $USERS;do i=$((i+1));done;echo $i)
+    NUM_PORTS=$(let i=0;for item in $PORTS;do i=$((i+1));done;echo $i)
 
 # Get some additional stuff from the devices:
     DEV_LAN_IP=`$BIN_IFC $DEV_LAN | \
@@ -252,7 +250,7 @@ function configure
 #   functionality 24/7.
 # SEE ALSO:
 # -----------------------------------------------------------------------------
-function modules
+modules()
 {
 # Load some modules...
 # TODO:  Most of them are not required. Needs a cleanup.
@@ -298,7 +296,7 @@ function modules
 #   So all the general IPTables stuff goes here.
 # SEE ALSO:
 # -----------------------------------------------------------------------------
-function iptables
+iptables()
 {
 # Set TOS for several stuff.
     if [ "$FEATURE_TOS" == "1" ]
@@ -323,7 +321,7 @@ function iptables
         $BIN_IPT -t mangle -A $FN_PREROUTING -m tos --tos Minimize-Delay -j $FN_CHK_TOS
 
         # Modifying TOS for TCP control packets: (from www.docum.org / Stef Coene)
-        $BIN_IPT -t mangle -A $FN_ACK_TOS -m tos --tos ! Normal-Service -j RETURN
+        $BIN_IPT -t mangle -A $FN_ACK_TOS -m tos ! --tos Normal-Service -j RETURN
         $BIN_IPT -t mangle -A $FN_ACK_TOS -p tcp -m length --length 0:256 -j TOS --set-tos Minimize-Delay
         $BIN_IPT -t mangle -A $FN_ACK_TOS -p tcp -m length --length 256: -j TOS --set-tos Maximize-Throughput
         $BIN_IPT -t mangle -A $FN_ACK_TOS -j RETURN
@@ -423,7 +421,7 @@ function iptables
 # SEE ALSO:    user_class
 # -----------------------------------------------------------------------------
 
-function parent_class_default
+parent_class_default()
 {
     PC_DEV=$1
     PC_RATE=$2
@@ -458,7 +456,7 @@ function parent_class_default
 }
 
 # Wondershaper uses the default parent class structure.
-function parent_class_wonder
+parent_class_wonder()
 {
     parent_class_default $*
 }
@@ -489,7 +487,7 @@ function parent_class_wonder
 # -----------------------------------------------------------------------------
 
 # The default structure, as described above.
-function user_class_default
+user_class_default()
 {
 # Make the positional parameters more readable.
 # Use UC_ prefix to make sure that these variables belong to User_Class.
@@ -544,7 +542,7 @@ function user_class_default
                       sfq perturb 11
 }
 
-function user_class_wonder
+user_class_wonder()
 {
 # Make the positional parameters more readable.
 # Use UC_ prefix to make sure that these variables belong to User_Class.
@@ -630,7 +628,7 @@ function user_class_wonder
 #   which User this traffic belongs to.
 # SEE ALSO:    forward
 # -----------------------------------------------------------------------------
-function fair_nat
+fair_nat()
 {
 # make positional parameters more readable
     FN_IP=$1
@@ -687,7 +685,7 @@ function fair_nat
 #   Port forwarding will always be done for TCP and UDP.
 # SEE ALSO:    nat
 # -----------------------------------------------------------------------------
-function forward
+forward()
 {
 # make positional parameters more readable
     F_IP=$1
@@ -708,7 +706,7 @@ function forward
 #   all TC qdiscs and classes.
 # SEE ALSO:    start_fairnat
 # -----------------------------------------------------------------------------
-function stop_fairnat
+stop_fairnat()
 {
 # reset qdisc
 
@@ -785,7 +783,7 @@ function stop_fairnat
 #   Various subroutines are called to accomplish that.
 # SEE ALSO:    stop_fairnat
 # -----------------------------------------------------------------------------
-function start_fairnat
+start_fairnat()
 {
 # Fair NAT only works if devices and iptables are 'clean'.
 # The function stop_fairnat takes care of that.
@@ -915,14 +913,16 @@ function start_fairnat
 # --- Port Forwarding: ---
     if [ "$FEATURE_FORWARD" == 1 ]
     then
-        PORT_ARRAY=($PORTS)
-
-        for ((i=0; i<$NUM_PORTS; i+=2));
+        i=0
+        for item in $PORTS;
         do
-            IP=$DEV_LAN_SUBNET.${PORT_ARRAY[$i]};
-            PORT=${PORT_ARRAY[$i+1]}
-
-            forward $IP $PORT
+            if [ $((i%2)) == 1 ]; then
+                PORT=$item;
+                forward $IP $PORT
+            else
+                IP=$DEV_LAN_SUBNET.$item;
+            fi
+            i=$((i+1))
         done;
     fi
 }
